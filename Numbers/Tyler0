@@ -1,0 +1,11 @@
+#! /usr/bin/env ruby
+$str = ""
+
+while std = STDIN.gets do
+	temp = Array.new
+	temp = std.split()
+	$str.concat(temp.last)
+	puts "# " + $str
+end
+
+puts "one two" 
