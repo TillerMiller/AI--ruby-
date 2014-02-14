@@ -1,0 +1,58 @@
+                          Numbers Corpus
+                            Release 1.1
+
+              Center for Spoken Language Understanding
+
+
+UPDATED: 02 August 2000
+
+
+Directory Structure
+-------------------
+This document describes the directory structure of this
+release. 
+
+Following is a written description of the directory
+structure in this release:
+
+  readme.txt	General information regarding the corpus.
+
+  docs/		The documentation directory. This
+		directory contains further documentation for
+		the Numbers corpus.
+
+  labels/	Phonetic labeling directory. This directory
+		contains phonetic labeling information for this 
+		corpus.
+
+  misc/		Miscellaneous directory, possibly
+		containing software tools and scripts.
+
+  speech/	The speech directory contains the actual 
+		.wav files. There are many numbered
+		subdirectories within the speech directory.
+
+  trans/	The transcriptions directory. This directory
+		contains the orthographic transcription for
+		each of the speech files.
+
+This corpus requires approximately 586MB of disk space.
+
+Visually, the directory structure looks something like this:
+
+			  numbers
+			     |
+    -------------------------------------------------
+    |          |        |        |        |         |
+readme.txt   /docs   /labels   /misc   /speech   /trans
+
+The /speech directory contains the speech data.  The files
+are divided into sub-directories based on the speaker's ID
+number.
+
+The /trans directory contains contains the orthographic
+transcription of each of the files.  Once again, the files
+are stored in sub-directories based on the call number of
+the file.
+
+The /labels directory includes phonetic labeling for 6640 files.

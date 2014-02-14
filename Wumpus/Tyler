@@ -1,0 +1,279 @@
+#!/usr/bin/env ruby
+
+class Hash
+  def except(which)
+    self.tap{ |h| h.delete(which) }
+  end
+end
+
+moves = 0
+goldGrabbed = 0
+$command = nil
+$visited = Hash.new 
+$visited[11] = 0,0
+$unvisited = Hash.new
+$poss = Array.new
+$x = 1
+$y = 1
+$direction = "east"
+$roomSize = 4
+$reverseOrder = Array.new
+$wump = nil
+
+for i in (1..$roomSize)
+	for j in (1..$roomSize)
+		$unvisited[i.to_s+j.to_s] = 0.2,0.08
+	end
+end
+$unvisited["12"] = 0,0
+$unvisited["21"] = 0,0
+$unvisited["22"] = 0,0
+$walls = Hash.new
+for i in (0..0)
+	for j in (1..$roomSize)
+		$walls[i.to_s+j.to_s] = "wall";	$walls[j.to_s+i.to_s] = "wall"
+	end
+end
+for i in ($roomSize+1..$roomSize+1)
+	for j in (1..$roomSize)
+		$walls[i.to_s+j.to_s] = "wall";	$walls[j.to_s+i.to_s] = "wall"
+	end
+end
+
+def add_to_visited()
+	kill_Wumpus()
+	case $direction
+	when "north" then $y+=1
+	when "south" then $y-=1
+	when "east" then $x+=1
+	when "west" then $x-=1
+	end
+	if !$visited.has_key?($x.to_s+$y.to_s) then $visited[$x.to_s+$y.to_s] = 0,0 end
+	$visited.each_key{|elem| 
+		if $unvisited.has_key?(elem) then $unvisited.except(elem) end
+	}
+	printInfo()
+end
+
+def change_orientation(turnValue)
+	printInfo()
+	$command = turnValue #declared here instead of repeating code in main loop
+	case $direction
+	when "north" then if turnValue == "left"  then $direction = "west" end
+		if turnValue == "right" then $direction = "east" end
+	when "south" then if turnValue == "left"  then $direction = "east" end
+		if turnValue == "right" then $direction = "west" end
+	when "east" then if turnValue == "left"  then $direction = "north" end 
+		if turnValue == "right" then $direction = "south" end
+	when "west" then if turnValue == "left"  then $direction = "south" end
+		if turnValue == "right" then $direction = "north" end
+	end
+	puts "# command ="+$command.to_s
+end
+
+def get_input()
+	$std = nil
+	$std = STDIN.gets while $std.nil?
+	$std.gsub!(","," ")
+	puts "# "+$std
+end
+
+def nextRoomIsValid()
+	case $direction
+	when "north" then if $y+1 < $roomSize+1 then return true end
+	when "south" then if $y-1 > 0 then return true end
+	when "east" then  if $x+1 < $roomSize+1 then return true end
+	when "west" then  if $x-1 > 0 then return true end
+	else return false 
+	end
+end
+
+def update_unvisited()
+	case $direction
+	when "north" then 
+		if $unvisited.has_key?($x.to_s+($y+1).to_s) then $unvisited[$x.to_s+($y+1).to_s] = 0,0 end
+		if $unvisited.has_key?(($x-1).to_s+$y.to_s) then $unvisited[($x-1).to_s+$y.to_s] = 0,0 end
+		if $unvisited.has_key?(($x+1).to_s+$y.to_s) then $unvisited[($x+1).to_s+$y.to_s] = 0,0 end
+	when "south" then 
+		if $unvisited.has_key?($x.to_s+($y-1).to_s) then $unvisited[$x.to_s+($y-1).to_s] = 0,0 end
+		if $unvisited.has_key?(($x-1).to_s+$y.to_s) then $unvisited[($x-1).to_s+$y.to_s] = 0,0 end
+		if $unvisited.has_key?(($x+1).to_s+$y.to_s) then $unvisited[($x+1).to_s+$y.to_s] = 0,0 end
+	when "east"  then  
+		if $unvisited.has_key?(($x+1).to_s+$y.to_s) then $unvisited[($x+1).to_s+$y.to_s] = 0,0 end
+		if $unvisited.has_key?($x.to_s+($y+1).to_s) then $unvisited[$x.to_s+($y+1).to_s] = 0,0 end
+		if $unvisited.has_key?($x.to_s+($y-1).to_s) then $unvisited[$x.to_s+($y-1).to_s] = 0,0 end
+	when "west"  then  
+		if $unvisited.has_key?(($x-1).to_s+$y.to_s) then $unvisited[($x-1).to_s+$y.to_s] = 0,0 end
+		if $unvisited.has_key?($x.to_s+($y+1).to_s) then $unvisited[$x.to_s+($y+1).to_s] = 0,0 end
+		if $unvisited.has_key?($x.to_s+($y-1).to_s) then $unvisited[$x.to_s+($y-1).to_s] = 0,0 end
+	end
+end
+
+def find_closest_unvisited()
+	if !$unvisited.has_value?([0,0]) && $x.to_s+$y.to_s == "11" then puts "quit" end #terminates when home and all is visited
+	if !$visited.has_key?($x.to_s+$y.to_s) then $visited[$x.to_s+$y.to_s] = 0,0 end # adds the current XY to visited
+	$visited.each_key{|elem| if $unvisited.has_key?(elem) then $unvisited.delete(elem) end} #deletes any visited room from unvisited
+	if !$unvisited.has_value?([0,0]) then returnHome() end #calls returnHome method if unvisited has no more safe rooms
+	case $direction #case will change the direction to an adjacent unvisited safe room
+	when "north" then
+		if $unvisited.has_key?($x.to_s+($y+1).to_s) and $unvisited[$x.to_s+($y+1).to_s] == [0,0] then $command = "forward"; return end
+		if $unvisited.has_key?(($x-1).to_s+$y.to_s) and $unvisited[($x-1).to_s+$y.to_s] == [0,0] then change_orientation("left"); return end
+		if $unvisited.has_key?(($x+1).to_s+$y.to_s) and $unvisited[($x+1).to_s+$y.to_s] == [0,0] then change_orientation("right"); return end
+	when "south" then
+		if $unvisited.has_key?($x.to_s+($y-1).to_s) and $unvisited[$x.to_s+($y-1).to_s] == [0,0] then $command = "forward"; return end
+		if $unvisited.has_key?(($x-1).to_s+$y.to_s) and $unvisited[($x-1).to_s+$y.to_s] == [0,0] then change_orientation("right"); return end
+		if $unvisited.has_key?(($x+1).to_s+$y.to_s) and $unvisited[($x+1).to_s+$y.to_s] == [0,0] then change_orientation("left"); return end
+	when "east"  then
+		if $unvisited.has_key?(($x+1).to_s+$y.to_s) and $unvisited[($x+1).to_s+$y.to_s] == [0,0] then $command = "forward"; return end
+		if $unvisited.has_key?($x.to_s+($y+1).to_s) and $unvisited[$x.to_s+($y+1).to_s] == [0,0] then change_orientation("left"); return end
+		if $unvisited.has_key?($x.to_s+($y-1).to_s) and $unvisited[$x.to_s+($y-1).to_s] == [0,0] then change_orientation("right"); return end
+	when "west"  then
+		if $unvisited.has_key?(($x-1).to_s+$y.to_s) and $unvisited[($x-1).to_s+$y.to_s] == [0,0] then $command = "forward"; return end
+		if $unvisited.has_key?($x.to_s+($y+1).to_s) and $unvisited[$x.to_s+($y+1).to_s] == [0,0] then change_orientation("right"); return end
+		if $unvisited.has_key?($x.to_s+($y-1).to_s) and $unvisited[$x.to_s+($y-1).to_s] == [0,0] then change_orientation("left"); return end
+	end
+	change_orientation("left"); puts $command; get_input() #starts turn around moves
+	change_orientation("left"); puts $command; get_input() #finishes turning around
+	add_to_visited(); $command = "forward"; puts $command; get_input() #moves back one space
+end
+
+def returnHome()
+	if !$unvisited.has_value?([0,0]) && $x.to_s+$y.to_s == "11" then puts "quit" end
+	if $direction == "north" then change_orientation("left") end
+	if $direction == "east" then change_orientation("right") end
+	puts $command; get_input()
+	if nextRoomIsValid() then $command = "forward" end
+	while nextRoomIsValid() do
+		add_to_visited()
+		puts $command
+		get_input()
+		puts "# $y = "+$y.to_s+" $x = "+$x.to_s
+		if $x.to_s+$y.to_s == "11" then puts "quit" end
+	end
+	if $direction == "west" then change_orientation("left") end
+	if $direction == "south" then change_orientation("right") end
+	puts $command; get_input()
+	if nextRoomIsValid() then $command = "forward" end
+	while nextRoomIsValid() do
+		add_to_visited()
+		puts $command
+		get_input()
+		puts "# $y = "+$y.to_s+" $x = "+$x.to_s
+		if $x.to_s+$y.to_s == "11" then puts "quit" end
+	end
+end
+
+def check_ahead()
+	tempx = $x
+	tempy = $y
+	case $direction
+	when "north" then tempy+=1
+	when "south" then tempy-=1
+	when "east" then tempx+=1
+	when "west" then tempx-=1
+	end
+	key = tempx.to_s+tempy.to_s
+	if $unvisited.has_key?(key) && ($unvisited[key][0] != 0 || $unvisited[key][1] != 0) then return true end
+end
+
+def kill_Wumpus()
+	if $wump != nil && $wump != 2 then
+		if $wump.match(/#{Regexp.escape($x.to_s)}./) or $wump.match(/.#{Regexp.escape($y.to_s)}/) then 
+			if $wump.match(/#{Regexp.escape($x.to_s)}./) then #X values match
+				if ($x.to_s+$y.to_s).to_i < $wump.to_i then #compare y values
+					case $direction #turn toward north
+					when "east"  then change_orientation("left"); puts $command
+					when "west"  then change_orientation("right"); puts $command
+					when "south" then change_orientation("right"); puts $command; get_input()
+						change_orientation("right"); puts $command
+					end
+				else
+					case $direction #turn toward south
+					when "east"  then change_orientation("left"); puts $command
+					when "west"  then change_orientation("right"); puts $command
+					when "north" then change_orientation("right"); puts $command; get_input()
+						change_orientation("right"); puts $command
+					end
+				end
+			else #compare x values
+				if ($x.to_s+$y.to_s).to_i < $wump.to_i then
+					case $direction #turn toward east
+					when "north" then change_orientation("right"); puts $command
+					when "south" then change_orientation("left"); puts $command
+					when "west"  then change_orientation("right"); puts $command; get_input()
+						change_orientation("right"); puts $command
+					end
+				else
+					case $direction #turn towar west
+					when "north" then change_orientation("left"); puts $command
+					when "south" then change_orientation("right"); puts $command
+					when "east"  then change_orientation("right"); puts $command; get_input()
+						change_orientation("right"); puts $command
+					end
+				end
+			end
+			get_input()
+			if $wump != 2 then
+				puts "shoot" end
+				get_input()
+			end
+		if /. . . . y/.match($std) then $unvisited.each_value{|elem| if elem[1] > 0 then elem[1] = 0 end} #sets all wumpus values to safe
+			$wump = 2 #sets global wump variable to 2 for checks in other places
+		end
+	end
+end
+
+def wumpus_check()
+	count = 0
+	$unvisited.each_value{|elem| if elem[1] == 1 then count = count + 1 end}
+	if count == 1 then 
+		$unvisited.each_value{|elem| if elem[1] != 1 then elem[1] = 0 end} 
+		$unvisited.each{|k,v| if v[1] == 1 then $wump = k end} 
+	end
+end
+
+def printInfo()
+	$unvisited.each{|elem| puts "#{elem.to_s}" + " unvisited"}
+	$visited.each{|elem| puts "#{elem.to_s}" + "      visited"}
+	puts "# $x"+$x.to_s
+	puts "# $y"+$y.to_s
+	puts "# wump"+$wump.to_s
+end
+
+while true do
+	wumpus_check()
+	get_input() #input follows this format ( $stench, $breeze, $glitter, $bump, $scream )
+	if !$visited.has_key?($x.to_s+$y.to_s) then $visited[$x.to_s+$y.to_s] = 0,0 end
+	$visited.each_key{|elem| if $unvisited.has_key?(elem) then $unvisited.delete(elem) end}
+	if /. . y . ./.match($std) and goldGrabbed == 0 then puts "grab"; goldGrabbed = 1; get_input() end
+	case $std
+	when /n n . . ./ then 
+		update_unvisited()
+		if nextRoomIsValid() && check_ahead() then $command = "forward" 
+		else find_closest_unvisited() end
+	when /y . . . ./ then
+		if $wump != 2 then
+			if $unvisited.has_key?($x.to_s+($y-1).to_s) and $unvisited[$x.to_s+($y-1).to_s][1] != 0 then $unvisited[$x.to_s+($y-1).to_s][1]=1 end
+			if $unvisited.has_key?($x.to_s+($y+1).to_s) and $unvisited[$x.to_s+($y+1).to_s][1] != 0 then $unvisited[$x.to_s+($y+1).to_s][1]=1 end
+			if $unvisited.has_key?(($x-1).to_s+$y.to_s) and $unvisited[($x-1).to_s+$y.to_s][1] != 0 then $unvisited[($x-1).to_s+$y.to_s][1]=1 end
+			if $unvisited.has_key?(($x+1).to_s+$y.to_s) and $unvisited[($x+1).to_s+$y.to_s][1] != 0 then $unvisited[($x+1).to_s+$y.to_s][1]=1 end
+			wumpus_check()
+			if $wump != 2 then find_closest_unvisited() end
+		else 
+			find_closest_unvisited()
+		end
+	when /. y . . ./ then 
+		if $unvisited.has_key?($x.to_s+($y-1).to_s) and $unvisited[$x.to_s+($y-1).to_s][0] != 0 then $unvisited[$x.to_s+($y-1).to_s][0]=1 end
+		if $unvisited.has_key?($x.to_s+($y+1).to_s) and $unvisited[$x.to_s+($y+1).to_s][0] != 0 then $unvisited[$x.to_s+($y+1).to_s][0]=1 end
+		if $unvisited.has_key?(($x-1).to_s+$y.to_s) and $unvisited[($x-1).to_s+$y.to_s][0] != 0 then $unvisited[($x-1).to_s+$y.to_s][0]=1 end
+		if $unvisited.has_key?(($x+1).to_s+$y.to_s) and $unvisited[($x+1).to_s+$y.to_s][0] != 0 then $unvisited[($x+1).to_s+$y.to_s][0]=1 end
+		find_closest_unvisited()
+	end
+
+	if !$unvisited.has_value?([0,0]) then #puts "quit" 
+		returnHome()
+	end
+	moves+=1
+	if $command == "forward" then add_to_visited() end
+	puts $command
+end

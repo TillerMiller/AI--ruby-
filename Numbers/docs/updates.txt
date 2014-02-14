@@ -1,0 +1,51 @@
+                          Numbers Corpus
+                            Release 1.1
+
+              Center for Spoken Language Understanding
+
+
+02 August 2000
+--------------
+Release Version 1.1
+
+Several changes have been implemented that differentiate
+this version of the Numbers Corpus from version 1.0. These
+changes include the following:
+
+* Speech files in the /speech directory have been 
+  converted from NIST format to RIFF format.
+
+* The directory structure has been modified so that 
+  it is more logical and accessible.
+
+* The documentation has been updated so that it 
+  accurately reflects the corpus contents.
+
+These and other changes have been made to make the corpus
+more useful to the end-user.
+
+June 1998
+---------
+Release Version 1.0cd (June 1998)
+
+This corpus was originally collected and distributed on 8mm
+tape for use on UNIX-based workstations.  For this release,
+we have converted the corpus to a more platform-independent
+file structure.
+
+* Converted file and directory names to 8.3 naming format.
+
+* Verified mulaw format for all audio files. 
+
+* Rewrote audio file headers with file name and corpus 
+  information.
+
+* Updated documentation to reflect changes.
+
+* Burned to ISO 9660 CD-ROM.
+
+July 1996
+-----------
+Release Version 1.0
+
+Initial release version.

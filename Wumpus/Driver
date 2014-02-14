@@ -1,0 +1,439 @@
+#! /usr/bin/expect --
+fconfigure stdin -blocking 1
+
+##############################################################
+# wumpus driver
+puts "Welcome to Wumpus Driver by Don Colton"
+
+##############################################################
+proc usage args { puts ""
+  puts "usage 1: wumpDriver wumpClient wumpClient wumpClient ..."
+  puts "  shows the map and allows direct competition"
+  puts "usage 2: wumpDriver n wumpClient"
+  puts "  runs one client n times and just reports the results."
+  puts "optionally include seed=nnnn to seed the random generator."
+  puts "optionally include width=n to print n across, default is 3."
+  puts ""; exit }
+
+##############################################################
+# agent gets percept: (stench,breeze,glitter,bump,scream)
+# . example: n,n,n,n,n (comma separated list of five items)
+# . stench means you can smell the wumpus in an adjacent cell
+# . breeze means you can tell there is a pit in an adjacent cell
+# . glitter means there is uncollected gold in the current cell
+# . bump means you tried to move forward but ran into a wall and did not move
+# . scream means you shot the wumpus and it is now dead and no longer dangerous
+# agent must reply with one of (S,shoot,L,left,R,right,A,forward,Q,quit,G,grab)
+
+set sc(Mv)    -1 ;# penalty -1 for each action
+set sc(Bu)   -10 ;# penalty -10 for bumping into the wall
+set sc(Sh)   -10 ;# penalty -10 for shooting arrow
+set sc(Di) -1000 ;# penalty -1000 for death
+set sc(Go)  1000 ;# reward +1000 for getting the gold
+set sc(RV)   100 ;# reward +100 for each new room visited / explored
+set sc(QE)   100 ;# reward +100 for quitting back at the entrance (1,1)
+set sc(KW)   100 ;# reward +100 for killing the wumpus
+
+##############################################################
+# map() contains all game details in the following form
+# map($agent,$xy) is defined where $agent has visited
+# map($agent,x) is the x (col) where the agent is, [1-4], initially 1
+# map($agent,y) is the y (row) where the agent is, [1-4], initially 1
+# map($agent,dir) is the direction agent is facing: [^<v>X] (x if dead)
+# map($agent,killed) is defined if wumpus is dead
+# map($agent,perc) contains the current percepts
+# map($agent,score) contains the score for the agent
+# map($agent,shot) is defined if arrow has been shot
+# map(b,$xy) is defined where there is a breeze (pit near)
+# map($agent,g,$xy) is defined where there is gold
+# map(p,$xy) is defined where there is a pit
+# map(s,$xy) is defined where there is a stench (wumpus near)
+# map(w,$xy) is defined where there is a wumpus
+
+##############################################################
+# extract the seed if any
+set seed ""; if [regexp {seed=(-?\d+)} $argv foo seed] {
+  regsub " seed=$seed " " $argv " " " argv
+  set argv [string trim $argv] }
+
+# extract the width if any, default to 3
+set width 3; if [regexp {width=(\d+)} $argv foo width] {
+  regsub " width=$width" " $argv " " " argv
+  set argv [string trim $argv] }
+
+##############################################################
+# give names of the agents on the command line
+set iter 1; set verbose 1
+# puts "argv is ($argv)"
+if { [llength $argv] == 2 && [regexp {^(\d+) (.*)} $argv foo iter argv] } {
+  set verbose 0; puts "Running in Evaluation mode for $iter iterations." }
+set count 0; foreach agent $argv {
+  if ![regexp "/" $agent] { set agent "./$agent" } 
+  if ![file exists $agent] { puts "skipping $agent"; continue }
+  incr count; lappend agents "a$count"
+  set map(a$count,name) $agent; set map(a$count,pname) [file tail $agent] }
+proc putsv {lvl line} { global verbose; if { $verbose >= $lvl } { puts $line } }
+if { $count == 0 } { usage }
+proc putsv1 {lvl line} { putsv $lvl $line }
+
+##############################################################
+# draw the map showing the board configuration and score:
+# each cell lists agent, wumpus, pit, gold (awpg)
+# first dot is agent: [^v<>. ]; next wumpus [Ww ]; next pit [P ]; last gold [G ]
+
+proc show agent { global map
+  set lines ""; set divider "+----+----+----+----+"
+  set status "$map($agent,next)>$map($agent,x)$map($agent,y)"
+  if { $map($agent,dir) == "X" } { set status "$map($agent,q)$map($agent,moves)" }
+  if { $map($agent,dir) == "Q" } { set status "Q$map($agent,moves)" }
+  foreach y "4 3 2 1" { lappend lines $divider
+    set line "|"
+    foreach x "1 2 3 4" {
+      set xy "$x,$y"
+      set a " "; if [info exists map($agent,$xy)] { set a "." }
+      if { "$map($agent,x),$map($agent,y)" == $xy } { set a $map($agent,dir) }
+      set w " "; if [info exists map(w,$xy)] {
+        set w "W"; if [info exists map($agent,killed)] { set w "w" } }
+      set p " "; if [info exists map(p,$xy)] { set p "P" }
+      set g " "; if [info exists map($agent,g,$xy)] { set g "G" }
+      append line "$a$w$p$g|"
+    }   
+    lappend lines $line
+  }
+  lappend lines $divider
+  set line "$agent $map($agent,score) $status $map($agent,pname)"
+  lappend lines [format %-21.21s $line]
+  join $lines "\n" }
+
+##############################################################
+proc v args { return 0 } ;# verbosity low
+proc v args { return 1 } ;# verbosity high
+
+#-------------------------------------------------------------
+# this assumes all block lines are the same length
+proc showAll agents {
+  uplevel { set outputAll ""; set showAllWct 0; set outputLine ""; global width
+    foreach id $agents { set outputLine [merge $outputLine [show $id]]
+      if { [incr showAllWct] % $width == 0 } {
+        lappend outputAll $outputLine; set outputLine "" } }
+    if { $outputLine != "" } { lappend outputAll $outputLine }
+    join $outputAll "\n" } }
+proc merge {block1 block2} {
+  set output ""
+  set max 0; foreach line1 [split $block1 "\n"] {
+    set len [string length $line1]; if { $len > $max } { set max $len } }
+  if { $max == 0 } { return $block2 }
+  foreach line1 [split $block1 "\n"] line2 [split $block2 "\n"] {
+    lappend output "[format %-${max}s $line1]  [format %-21.21s $line2]" }
+  join $output "\n" }
+
+##############################################################
+# subroutines
+##############################################################
+
+proc average args {
+  if { [llength $args] == 1 } { set args [lindex $args 0] }
+  set sum 0; set count 0
+  foreach arg $args { catch { set sum [expr $sum + $arg]; incr count } }
+  if { $count == 0 } { return 0 }
+  expr 1.0 * $sum / $count }
+
+#-------------------------------------------------------------
+# modified from expect's mkpasswd by Don Libes
+proc rand args {
+  set fileId [open /dev/urandom r]
+  binary scan [read $fileId 4] i1 number
+  close $fileId
+  return $number }
+
+#-------------------------------------------------------------
+# pseudo-random number generator
+proc randomSeed seed { global RNDseed version
+  set RNDseed $seed;  set version $seed }
+proc random15 {} { global RNDseed; # 15 bit int: 0..32767
+  set RNDseed [expr $RNDseed * 1103515245 + 12345]; # overflows at 32 bits
+  expr int ( $RNDseed / 65536 ) % 32768 }
+proc random {low high} {
+  expr int ( $low + [random15] * ($high - $low + 1) / 32768) }
+
+#-------------------------------------------------------------
+# pick one at random
+proc pick args {
+  if { [llength $args] == 1 } { set args [lindex $args 0] }
+  lindex $args [random 0 [expr [llength $args] - 1]] }
+
+#-------------------------------------------------------------
+# permute a list and return it
+proc permute args { set out "";
+  if { [llength $args] == 1 } { set args [lindex $args 0] }
+  while { [llength $args] > 0 } {
+    set nexti [random 0 [expr [llength $args] - 1]];
+    lappend out [lindex $args $nexti];
+    set args [lreplace $args $nexti $nexti];
+  }; return $out;
+}
+
+##############################################################
+# main program
+##############################################################
+proc main args { global agents map verbose keep sc
+##############################################################
+# foreach agent $agents { putsv 0 "agent is $agent" }
+# agent is either "<" ">" "^" or "V" to show directionality, or "x" if dead
+foreach key [array names map] { if ![regexp "name$" $key] { unset map($key) } }
+puts [array get map]
+# catch { unset map }
+foreach agent $agents {
+  set map($agent,dir) ">"
+  set map($agent,x) 1
+  set map($agent,y) 1
+  set map($agent,score) 0
+  set map($agent,moves) 0
+  set map($agent,perc) "x,x,x,x,x"
+  set map($agent,next) "@" } ;# "start"
+if { [llength $agents] != 1 } { proc putsv1 args { } } ;# show debug if one agent
+
+##############################################################
+# ask random map or keyed in map
+# while 1 {
+#   putsv 0 "Specify map type: r=random, k=keyed."
+#   set maptype [string tolower [gets stdin]]
+#   if [regexp {^[qx]$} $maptype] exit
+#   if [regexp {^[rk]$} $maptype] break
+#   putsv 0 "You said \"$maptype\" but I don't understand.  Try again."
+# }
+
+##############################################################
+# if keyed in, accept it using ....\n ..p.\n ....\n ..p.\n notation for the pits
+# then prompt for the location of the gold and the wumpus
+set maptype "r"; # stub
+
+##############################################################
+if { $maptype == "r" } { global seed
+  putsv 1 "Generating a Random Map, using seed $seed"
+  # set cells "1,2 1,3 1,4 2,1 2,2 2,3 2,4 3,1 3,2 3,3 3,4 4,1 4,2 4,3 4,4"
+  set cells "1,3 1,4 2,3 2,4 3,1 3,2 3,3 3,4 4,1 4,2 4,3 4,4"
+  foreach cell $cells {
+    if { [random15] % 5 != 0 } continue
+    set map(p,$cell) 1
+    regexp {(.),(.)} $cell foo x y
+    set map(b,$x,$y) 1; # assign breeze
+    set map(b,$x,[expr $y-1]) 1
+    set map(b,$x,[expr $y+1]) 1
+    set map(b,[expr $x-1],$y) 1
+    set map(b,[expr $x+1],$y) 1
+  }
+  set w [pick $cells]; set map(w,$w) 1; # hide the wumpus
+  regexp {(.),(.)} $w foo x y
+  set map(s,$x,$y) 1; # assign stench
+  set map(s,$x,[expr $y-1]) 1
+  set map(s,$x,[expr $y+1]) 1
+  set map(s,[expr $x-1],$y) 1
+  set map(s,[expr $x+1],$y) 1
+  set g [pick $cells] ;# position the gold
+  foreach agent $agents { set map($agent,g,$g) 1 } ;# hide the gold
+}
+
+##############################################################
+
+# debugging information
+putsv 2 [lsort [array names map]]
+
+log_user 0; # stop spawned process output from appearing on the screen
+
+# start each agent
+foreach agent $agents {
+  putsv 1 "starting $agent $map($agent,name) ($map($agent,pname))"
+  # if it was open, close it so we can reopen it
+  if [info exists keep($agent.sid)] { set spawn_id $keep($agent.sid)
+    # puts "killing $spawn_id $keep($agent.pid)"
+    # exec kill $keep($agent.pid)
+    catch { close }
+    wait -nowait }
+  # catch { set spawn_id $keep($agent.sid); close; wait -nowait }
+  set keep($agent.pid) [eval spawn $map($agent,name)]
+  set keep($agent.sid) $spawn_id
+  # puts "spawning $spawn_id $keep($agent.pid)"
+
+  # calculate the percept: stench,breeze,glitter,bump,scream
+  set xy "$map($agent,x),$map($agent,y)"
+  set percept ""
+  if { [info exists map(s,$xy)] } {
+    append percept "y," } else { append percept "n," }
+  if { [info exists map(b,$xy)] } {
+    append percept "y," } else { append percept "n," }
+  if { [info exists map($agent,g,$xy)] } {
+    append percept "y," } else { append percept "n," }
+  append percept "n,n"; # guaranteed true on first move
+  set map($agent,perc) $percept
+}
+puts [showAll $agents]
+
+set map(a,moves) 0 ;# count the number of moves made
+while 1 {
+  # wait for dungeonmaster to press enter or type a number and press enter
+  putsv 1 "$map(a,moves) press ENTER to continue (or enter a number)"
+  if { $verbose > 0 } { set turns [gets stdin] } else { set turns 1 }
+  if [regexp {[qx]} [string tolower $turns]] break
+
+  # take the number of moves entered, default is 1, not less than 1.
+  if ![regexp {^[1-9][0-9]*$} $turns] { set turns 1 }
+  while { $turns > 0 } {
+    incr turns -1
+    # give each agent a percept and get its move
+    set alive 0
+    incr map(a,moves) ;# count the number of moves made
+    foreach agent $agents {
+      if { $map($agent,dir) == "X" } continue ;# agent died
+      if { $map($agent,dir) == "Q" } continue ;# agent quit
+      incr alive; # count remaining players
+
+      set spawn_id $keep($agent.sid)
+
+      set percept $map($agent,perc)
+      set note "sending percept (stench,breeze,glitter,bump,scream)"
+      putsv1 1 "To $agent: $note=($percept)"
+      send "$percept\r"
+      # expect "$percept" ;# we could turn this off with noecho
+
+      set got "X"; # quit
+      set timeout 1
+      # watch for crashes.
+      if [catch { expect {
+        -re {^[\r\n]*([^\r\n]+)[\r\n]+} { set got $expect_out(1,string)
+          set got [string toupper $got]
+          set got [string trim $got]
+          if ![regexp {^(S|SHOOT|L|LEFT|R|RIGHT|A|FORWARD|Q|QUIT|G|GRAB)$} $got] {
+            putsv1 1 "Fr $agent: $got"
+            exp_continue -continue_timer }
+          set map($agent,next) $got
+          putsv1 1 "Fr $agent: $got"
+        }
+        timeout { putsv 1 "## $agent ($map($agent,moves)): timeout"
+          set map($agent,q) "T"; set map($agent,dir) "X" }
+        eof { putsv 1 "## $agent ($map($agent,moves)): stopped (eof)"
+          set map($agent,q) "E"; set map($agent,dir) "X" }
+      } } ] { putsv 1 "## $agent ($map($agent,moves)): died"
+          set map($agent,q) "D"; set map($agent,dir) "X" }
+
+      if { $got == "QUIT" } { set got "Q" }
+      if { $got == "LEFT" } { set got "L" }
+      if { $got == "RIGHT" } { set got "R" }
+      if { $got == "FORWARD" } { set got "A" }
+      if { $got == "SHOOT" } { set got "S" }
+      if { $got == "GRAB" } { set got "G" }
+      set map($agent,next) $got
+
+      set x $map($agent,x)
+      set y $map($agent,y)
+      set xy "$x,$y"
+
+      if ![info exists map($agent,$xy)] {
+        incr map($agent,score) $sc(RV) ;# reward for each new room visited
+        set map($agent,$xy) 1 } ;# visited
+      set dirGot "$map($agent,dir)$got"
+
+      # we don't count quitting as an action that costs sc(Mv) points
+      if { $got == "Q" } {
+        if { $xy == "1,1" } { incr map($agent,score) $sc(QE) }
+        putsv 1 "## $agent ($map($agent,moves)): quitting"
+        set map($agent,q) "Q"; set map($agent,dir) "Q"; continue }
+
+      incr map($agent,moves) ;# count the number of moves made
+      incr map($agent,score) $sc(Mv) ;# penalty for each action
+
+      set killed "n"
+      if { $got == "S" } {
+        if [info exists map($agent,shot)] continue
+        set map($agent,shot) 1
+        incr map($agent,score) $sc(Sh) ;# penalty for shooting arrow
+        set x $map($agent,x); set y $map($agent,y)
+        if { $dirGot == "<S" } { while { $x >= 1 } {
+          if { [info exists map(w,$x,$y)] } {
+            set killed "y"; break }; incr x -1 } }
+        if { $dirGot == ">S" } { while { $x <= 4 } {
+          if { [info exists map(w,$x,$y)] } {
+            set killed "y"; break }; incr x  1 } }
+        if { $dirGot == "^S" } { while { $y <= 4 } {
+          if { [info exists map(w,$x,$y)] } {
+            set killed "y"; break }; incr y  1 } }
+        if { $dirGot == "vS" } { while { $y >= 1 } {
+          if { [info exists map(w,$x,$y)] } {
+            set killed "y"; break }; incr y -1 } }
+        if { $killed == "y" } { set map($agent,killed) 1
+          incr map($agent,score) $sc(KW) } ;# reward for killing wumpus
+      }
+      
+      if [info exists map($agent,g,$xy)] { putsv1 1 "## $agent: gold!!" }
+      if { $got == "G" } { # did we get the gold?
+        if [info exists map($agent,g,$xy)] {
+          unset map($agent,g,$xy) ;# can collect only once
+          incr map($agent,score) $sc(Go) } ;# reward for getting the gold
+      }
+
+      if { $dirGot == "^L" } { set map($agent,dir) "<"; set dirGot "" }
+      if { $dirGot == "<L" } { set map($agent,dir) "v"; set dirGot "" }
+      if { $dirGot == "vL" } { set map($agent,dir) ">"; set dirGot "" }
+      if { $dirGot == ">L" } { set map($agent,dir) "^"; set dirGot "" }
+
+      if { $dirGot == "^R" } { set map($agent,dir) ">"; set dirGot "" }
+      if { $dirGot == "<R" } { set map($agent,dir) "^"; set dirGot "" }
+      if { $dirGot == "vR" } { set map($agent,dir) "<"; set dirGot "" }
+      if { $dirGot == ">R" } { set map($agent,dir) "v"; set dirGot "" }
+
+      set bump "n"
+      if { $dirGot == "^A" } { set dirGot ""
+        if { $y == 4 } { set bump "y" } else { incr map($agent,y)  1 } }
+      if { $dirGot == "vA" } { set dirGot ""
+        if { $y == 1 } { set bump "y" } else { incr map($agent,y) -1 } }
+      if { $dirGot == "<A" } { set dirGot ""
+        if { $x == 1 } { set bump "y" } else { incr map($agent,x) -1 } }
+      if { $dirGot == ">A" } { set dirGot ""
+        if { $x == 4 } { set bump "y" } else { incr map($agent,x)  1 } }
+      if { $bump == "y" } { incr map($agent,score) $sc(Bu) } ;# bump penalty
+
+      # in case we moved just now
+      set x $map($agent,x)
+      set y $map($agent,y)
+      set xy "$x,$y"
+
+      # calculate the percept: stench,breeze,glitter,bump,scream
+      set xy "$map($agent,x),$map($agent,y)"
+      set percept ""
+      if { [info exists map(s,$xy)] } { set s "y" } else { set s "n" }
+      if { [info exists map(b,$xy)] } { set b "y" } else { set b "n" }
+      if { [info exists map($agent,g,$xy)] } { set g "y" } else { set g "n" }
+      set map($agent,perc) "$s,$b,$g,$bump,$killed"
+
+      # did we run into a live wumpus?
+      if { [info exists map(w,$xy)] && ![info exists map($agent,killed)] } {
+        putsv 1 "## $agent ($map($agent,moves)): wumpus is here.  AAAAAH!" }
+      if { ![info exists map($agent,killed)] && [info exists map(w,$xy)] } {
+        incr map($agent,score) $sc(Di) ;# penalty for death
+        set map($agent,q) "W"; set map($agent,dir) "X" }
+
+      # did we fall into a pit?
+      if [info exists map(p,$xy)] {
+        putsv 1 "## $agent ($map($agent,moves)): pit is here.  AAAAAH!"
+        incr map($agent,score) $sc(Di) ;# penalty for death
+        set map($agent,q) "P"; set map($agent,dir) "X" }
+    }
+    # puts [showAll $agents]
+  }
+  puts [showAll $agents]
+  if { $alive == 0 } { putsv 1 "All wumpus agents have terminated"; break }
+}
+
+set scoreline ""
+foreach agent $agents { lappend scoreline "$map($agent,pname)=$map($agent,score)" }
+puts [join $scoreline " "]
+foreach agent $agents { lappend keep($agent.scores) $map($agent,score) }
+}
+foreach agent $agents { set keep($agent.scores) "" }
+if { $seed == "" } { set seed [rand] }
+randomSeed $seed; set seedWas $seed
+while { $iter > 0 } { main; incr iter -1 }
+foreach agent $agents { if { [llength $keep($agent.scores)] == 1 } continue
+  puts "$agent avg score [average $keep($agent.scores)] - $map($agent,pname)" }
+puts "Seed was $seedWas"
+putsv 0 "Wumpus Driver Terminating"

@@ -1,0 +1,64 @@
+                           Numbers Corpus
+                            Release 1.1
+
+              Center for Spoken Language Understanding
+
+
+UPDATED: 02 August 2000
+
+
+This document describes the file naming conventions used 
+for this distribution and gives a brief description of the
+various file formats used.
+
+File Naming Convention
+----------------------
+Each filename in the corpus (other than the documentation)
+encodes information about the call number, utterance type,
+and file type.  A typical filename will look like:
+
+	NU-1214.firstname.wav
+
+The "NU" prefix indicates the corpus name, i.e. Numbers.
+The number between the "-" and the first "." is the call
+number.  Call numbers are described below.  The string
+between the first and second "." is the utterance type. 
+The following utterance types are in this corpus:
+
+  phone		Phone number
+  streetaddr	Street number as taken from an address
+  zipcode	Zipcode utterance
+  other1	Any other number that is not one of the 
+		above. There may be several "other?" 
+                utterances.  Additional ones will be 
+                identified as "other2", "other3", etc.
+
+The final, three letter, extention indicates the file type.
+The following types are in this distribution:
+
+  wav		The speech data
+  txt		The orthographic transcription
+  phn		The phonetic transcription
+
+File Formats
+------------
+There are three file formats used in this corpus (other
+than the documentation).  The .wav file format used is the
+RIFF standard file format. This file format is 16-bit
+linearly encoded.
+
+The "txt" file is simply an ascii text file.
+
+The "phn" file contains a time aligned phonetic
+transcription.  The first two lines of the file are
+considered the header.  The first line defines the "frame
+rate", which is the number of milliseconds per frame.  Each
+line after the header looks like this:
+
+    0 203 i:
+
+The two numbers indicate the starting and stopping frame,
+respectively, that corresponds to the label, which is the
+third field. By using the "frame rate", the correspondence
+between the phonetic labels and the waveform can be
+determined.

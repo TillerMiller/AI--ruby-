@@ -1,0 +1,169 @@
+#!/usr/bin/env ruby
+moves = 0
+$count = 0
+$command = nil
+$visited = Array.new
+$unvisited = Array.new
+$x = 0
+$y = 0
+$comparex
+$comparey
+$direction = "north"
+$visited << [0,0]
+
+def check_visited(input)
+	tempX = $x
+	tempY = $y
+	puts "# "+input
+	case $direction
+	when "north" then
+		if $visited.include?([tempX,tempY+1])  
+			if $visited.include?([tempX-1,tempY]) or /1 . . . ./.match(input) then change_orientation("right", $x, $y)
+			else change_orientation("left", $x, $y) end
+		end
+	when "south" then
+		if $visited.include?([tempX,tempY-1]) 
+			if $visited.include?([tempX+1,tempY]) or /1 . . . ./.match(input) then change_orientation("right", $x, $y)
+			else change_orientation("left", $x, $y) end
+		end
+	when "east" then
+		if $visited.include?([tempX+1,tempY]) 
+			if $visited.include?([tempX,tempY+1]) or /1 . . . ./.match(input) then change_orientation("right", $x, $y)
+			else change_orientation("left", $x, $y) end
+		end
+	when "west" then
+		if $visited.include?([tempX-1,tempY]) 
+			if $visited.include?([tempX,tempY-1]) or /1 . . . ./.match(input) then change_orientation("right", $x, $y)
+			else change_orientation("left", $x, $y) end
+		end
+	end
+end
+
+def add_to_unvisited(input)
+	tempX = $x
+	tempY = $y
+	case $direction
+	when "north" then 
+		if input == "L" then tempX-=1 end
+		if input == "R" then tempX+=1 end
+	when "south" then 
+		if input == "L" then tempX+=1 end
+		if input == "R" then tempX-=1 end
+	when "east" then 
+		if input == "L" then tempY+=1 end
+		if input == "R" then tempY-=1 end
+	when "west" then 
+		if input == "L" then tempY-=1 end
+		if input == "R" then tempY+=1 end
+	end
+	$unvisited << [tempX, tempY]
+end
+
+def add_to_visited()
+	case $direction
+	when "north" then $y+=1
+	when "south" then $y-=1
+	when "east" then $x+=1
+	when "west" then $x-=1
+	end
+	$visited << [$x, $y]
+end
+
+def change_orientation(turnValue, x, y)
+	if ($comparex == x and $comparey == y)
+		$count+=1
+	else
+		$count=0
+		$comparex = x
+		$comparey = y
+	end
+	$command = turnValue
+	case $direction
+	when "north"
+		if turnValue == "left": $direction = "west" end
+		if turnValue == "right": $direction = "east" end
+	when "south"
+		if turnValue == "left": $direction = "east" end
+		if turnValue == "right": $direction = "west" end
+	when "east"
+		if turnValue == "left": $direction = "north" end 
+		if turnValue == "right": $direction = "south" end
+	when "west"
+		if turnValue == "left": $direction = "south" end
+		if turnValue == "right": $direction = "north" end
+	end
+end
+def moveRandom()
+	moves = 0;
+	while $visited.include?([$x,$y])
+		std = nil
+		std = STDIN.gets while std.nil?
+		moves+=1
+		puts "# "+std.to_s
+		puts "# "+$x.to_s+" "+$y.to_s
+		case std
+		when ((moves > 3) && /. . . . 1/) then puts "off"; break
+		when /1 1 . . ./ then change_orientation("right", $x, $y)
+			puts "forward"
+		when /. 1 1 . ./ then change_orientation("left", $x, $y)
+			puts "forward"
+		when /1 . 1 . ./ then $command = "forward"
+		when /. 1 . . ./ then
+			rd = rand()
+			if rd > 0.5 then change_orientation("right", $x, $y) 
+			else change_orientation("left", $x, $y) end
+		when /1 . . . ./ then puts "forward"
+		when /. . 1 . ./ then puts "forward"
+		else puts"forward"
+		end
+		if validate_posittion()
+			break
+		end
+		add_to_visited()
+	end
+end
+
+def validate_posittion()
+	if $visited.include?([$x,$y])
+		$count = 0
+		return true
+	else
+		return false
+	end
+end
+
+while true do 
+	std = nil
+	std = STDIN.gets while std.nil?
+	moves+=1 
+	if  std.match(/0 . . . ./) then add_to_unvisited("L")end
+	if  std.match(/. . 0 . ./) then add_to_unvisited("R")end
+	#for elem in $unvisited
+	#	if $visited.include?(elem) then $unvisited.delete(elem) end
+	#end
+	
+	case std
+	when /. . . 1 ./ then $command = "vacuum"
+	when ((moves > 3) && /. . . . 1/) then puts "off"; break
+	when /1 1 . . ./ then change_orientation("right", $x, $y)
+	when /. 1 1 . ./ then change_orientation("left", $x, $y)
+	when /1 . 1 . ./ then $command = "forward"
+	when /. 1 . . ./ then
+		rd = rand()
+		if rd > 0.5 then change_orientation("right", $x, $y) 
+		else change_orientation("left", $x, $y) end
+	when /1 . . . ./ then $command = "forward"
+	when /. . 1 . ./ then $command = "forward"
+	else $command = "forward"
+	end
+
+	if $command == "forward" then check_visited(std) end
+	if $command == "forward" then add_to_visited() end
+	
+		puts"# "+$count.to_s
+	$unvisited = $unvisited - $visited
+	puts $command
+	if $count >= 1 then moveRandom() end
+	$visited.uniq!
+	$unvisited.uniq!
+end

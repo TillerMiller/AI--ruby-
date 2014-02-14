@@ -1,0 +1,4 @@
+#! /usr/bin/perl --
+while ( $in = <STDIN> ) { print "# got input: $in" }
+print "one sixteen\n" ;# your answer
+

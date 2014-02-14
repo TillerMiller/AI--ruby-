@@ -1,0 +1,199 @@
+#!/usr/bin/env ruby
+moves = 0
+dummy = Array.new
+$command = nil
+$visited = Array.new
+$open = Array.new
+$walls = Array.new
+$poss = Array.new
+$x = 0
+$y = 0
+$direction = "east"
+$visited << [0,0]
+$roomSize = 4
+
+def add_to_visited()
+	case $direction
+	when "north" then $y+=1
+	when "south" then $y-=1
+	when "east" then $x+=1
+	when "west" then $x-=1
+	end
+	$visited << [$x, $y]
+end
+=begin
+def add_to_open(input)
+	case $direction
+	when "north" then 
+		if input == "right" then end
+		if input == "left" then end
+		if input == "front" then end
+	when "south" then 
+		if input == "right" then end
+		if input == "left" then end
+		if input == "front" then end
+	when "east" then $x+=1
+		if input == "right" then end
+		if input == "left" then end
+		if input == "front" then end
+	when "west" then 
+		if input == "right" then end
+		if input == "left" then end
+		if input == "front" then end
+	end
+	$visited << [$x, $y]
+end
+=end
+def change_orientation(turnValue)
+	$command = turnValue #declared here instead of repeating code in main loop
+	case $direction
+	when "north" then
+		if turnValue == "left" : $direction = "west" end
+		if turnValue == "right": $direction = "east" end
+	when "south" then
+		if turnValue == "left" : $direction = "east" end
+		if turnValue == "right": $direction = "west" end
+	when "east" then
+		if turnValue == "left" : $direction = "north" end 
+		if turnValue == "right": $direction = "south" end
+	when "west" then
+		if turnValue == "left" : $direction = "south" end
+		if turnValue == "right": $direction = "north" end
+	end
+end
+
+def get_input()
+	std = nil
+	std = STDIN.gets while std.nil?
+	std.gsub!(","," ")
+	return std
+end
+
+def evaluatePossibles(input)
+	case $direction
+	when "north" then 
+		if $y+1 <  $roomSize and !$visited.include?([$x, $y+1]) then $poss << [$x,$y+1,input] end 
+		if $x+1 <  $roomSize and !$visited.include?([$x+1, $y]) then $poss << [$x+1,$y,input] end
+		if $x-1 >= 0 and !$visited.include?([$x-1, $y]) then $poss << [$x-1,$y,input] end
+	when "south" then 
+		if $y-1 >= 0 and !$visited.include?([$x, $y-1]) then $poss << [$x,$y-1,input] end
+		if $x+1 < $roomSize and !$visited.include?([$x+1, $y]) then $poss << [$x+1,$y,input] end
+		if $x-1 >= 0 and !$visited.include?([$x-1, $y]) then $poss << [$x-1,$y,input] end
+	when "east" then 
+		if $x+1 < $roomSize and !$visited.include?([$x+1, $y]) then $poss << [$x+1,$y,input] end
+		if $y+1 < $roomSize and !$visited.include?([$x, $y+1]) then $poss << [$x,$y+1,input] end
+		if $y-1 >= 0 and !$visited.include?([$x, $y-1]) then $poss << [$x,$y-1,input] end
+	when "west" then
+		if $x-1 >= 0 and !$visited.include?([$x-1, $y]) then $poss << [$x-1,$y,input] end
+		if $y+1 < $roomSize and !$visited.include?([$x, $y+1]) then $poss << [$x,$y+1,input] end
+		if $y-1 >= 0 and !$visited.include?([$x, $y-1]) then $poss << [$x,$y-1,input] end
+	else return false 
+	end
+end
+
+def nextRoomIsValid()
+	case $direction
+	when "north" then 
+		if $y+1 < $roomSize then return true end
+	when "south" then 
+		if $y-1 >=0 then return true end
+	when "east" then 
+		if $x+1 < $roomSize then return true end
+	when "west" then 
+		if $x-1 >= 0 then return true end
+	else return false 
+	end
+end
+
+def isValid(input)
+	case $direction
+	when "north" then 
+		case input
+		when "left" then
+			if $x-1 >= 0 then $open << [$x-1,$y] end
+		when "right"
+			if $x+1 < $roomSize then $open << [$x+1,$y] end
+		when "front"
+			if $y+1 < $roomSize then $open << [$x,$y+1] end
+		end
+	when "south" then 
+		case input
+		when "left" then
+			if $x+1 <  $roomSize then $open << [$x+1,$y] end
+		when "right"
+			if $x-1 >= 0 then $open << [$x-1,$y] end
+		when "front"
+			if $y-1 >= 0 then $open << [$x,$y-1] end
+		end
+	when "east" then 
+		case input
+		when "left" then
+			if $y-1 >= 0 then $open << [$x,$y-1] end
+		when "right"
+			if $y+1 < $roomSize then $open << [$x,$y+1] end
+		when "front"
+			if $x+1 < $roomSize then $open << [$x+1,$y] end
+		end
+	when "west" then 
+		case input
+		when "left" then
+			if $y+1 < $roomSize then $open << [$x,$y+1] end
+		when "right"
+			if $y-1 >= 0 then $open << [$x,$y+1] end
+		when "front"
+			if $x-1 >= 0 then $open << [$x-1,$y] end
+		end
+	end
+end
+
+def check_stuck()
+	if  ($visited.include?([$x,$y+1])||$walls.include?([$x,$y+1])) &&
+		($visited.include?([$x,$y-1])||$walls.include?([$x,$y-1])) && 
+		($visited.include?([$x+1,$y])||$walls.include?([$x+1,$y])) &&
+		($visited.include?([$x-1,$y])||$walls.include?([$x-1,$y])) then return true
+	else return false end
+end
+
+while true do
+  	std = get_input() #input follows this format ( $stench, $breeze, $glitter, $bump, $scream )
+	case std
+	when /. . y . ./ then $command = "grab"
+	when /n n . . ./ then
+		isValid("left")
+		isValid("right")
+		isValid("front")
+		$open.each{|block| puts"# "+block.to_s}
+		if nextRoomIsValid() then $command = "forward" 
+		else change_orientation("left") end
+	when /y . . . ./ then evaluatePossibles("PW") #PW stands for Possible Wumpus
+		change_orientation("left"); puts $command; std = get_input()
+		change_orientation("left");	puts $command; std = get_input()
+		$command = "forward"; add_to_visited(); puts $command; std = get_input()
+		change_orientation("right"); puts $command; std = get_input(); $command = "forward"
+	when /. y . . ./ then evaluatePossibles("PP") #PP stands for Possible Pit
+		change_orientation("left"); puts $command; std = get_input()
+		change_orientation("left");	puts $command; std = get_input(); 
+		$command = "forward"; add_to_visited(); puts $command; std = get_input(); 
+		change_orientation("right"); puts $command; std = get_input(); $command = "forward"
+
+	end
+	moves+=1
+	if $command == "forward" then add_to_visited() end
+	#puts "# "+$direction.to_s
+	if !$poss.empty? then
+		$poss.each{|elem| 
+			tmp = Array.new
+			tmp << [elem[0],elem[1]]
+			if $visited.include?(tmp) then $poss.removes(elem) end
+		}
+	end
+	$poss.each{|elem| puts "# "+elem.to_s}
+	$poss.uniq!
+	$visited.uniq! #removes duplicate values from array of visited rooms
+	$open.uniq!
+	$open = $open - $visited
+	#$visited.each {|block| puts "# "+block.to_s}
+	puts $command
+end
+
+

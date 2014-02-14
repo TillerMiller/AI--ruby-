@@ -1,0 +1,247 @@
+#!/usr/bin/env ruby
+moves = 0
+dummy = Array.new
+$command = nil
+$visited = Array.new
+$unvisited = Array.new
+$walls = Array.new
+$x = 0
+$y = 0
+$direction = "north"
+$visited << [0,0]
+
+def shortest_distance()
+	shortest = 501
+	closestXY = Array.new
+	$unvisited.each {|xy| 
+		xDist = ($x-xy[0])**2
+		yDist = ($y-xy[1])**2
+		tempDist = Math.sqrt(xDist + yDist)
+		if tempDist < shortest then shortest = tempDist; closestXY = xy end}
+	return closestXY
+end
+
+def check_stuck()
+	if  ($visited.include?([$x,$y+1])||$walls.include?([$x,$y+1])) &&
+		($visited.include?([$x,$y-1])||$walls.include?([$x,$y-1])) && 
+		($visited.include?([$x+1,$y])||$walls.include?([$x+1,$y])) &&
+		($visited.include?([$x-1,$y])||$walls.include?([$x-1,$y])) then return true
+	else return false end
+end
+
+def check_visited(input) #redirects the agent if it encounters a room that has already been visited
+	tempX = $x
+	tempY = $y
+	case $direction
+	when "north" then
+		if $visited.include?([tempX,tempY+1]) or /. 1 . . ./.match(input) then
+			if $visited.include?([tempX-1,tempY]) or /1 . . . ./.match(input) then change_orientation("right")
+			else change_orientation("left") end
+		end
+	when "south" then
+		if $visited.include?([tempX,tempY-1]) or /. 1 . . ./.match(input) then
+			if $visited.include?([tempX+1,tempY]) or /1 . . . ./.match(input) then change_orientation("right")
+			else change_orientation("left") end
+		end
+	when "east" then
+		if $visited.include?([tempX+1,tempY]) or /. 1 . . ./.match(input) then
+			if $visited.include?([tempX,tempY+1]) or /1 . . . ./.match(input) then change_orientation("right"); puts "# this sux"
+			else change_orientation("left") end
+		end
+	when "west" then
+		if $visited.include?([tempX-1,tempY]) or /. 1 . . ./.match(input) then
+			if $visited.include?([tempX,tempY-1]) or /1 . . . ./.match(input) then change_orientation("right")
+			else change_orientation("left") end
+		end
+	end
+end
+
+def add_to_unvisited(input)
+	tempX = $x
+	tempY = $y
+	case $direction
+	when "north" then 
+		if input == "L" then tempX-=1 end
+		if input == "R" then tempX+=1 end
+	when "south" then 
+		if input == "L" then tempX+=1 end
+		if input == "R" then tempX-=1 end
+	when "east" then 
+		if input == "L" then tempY+=1 end
+		if input == "R" then tempY-=1 end
+	when "west" then 
+		if input == "L" then tempY-=1 end
+		if input == "R" then tempY+=1 end
+	end
+	$unvisited << [tempX, tempY]
+end
+
+def add_to_walls(input)
+	case $direction
+	when "north" then 
+		if  input.match(/1 . . . ./) then $walls << [$x-1,$y] end
+		if  input.match(/. 1 . . ./) then $walls << [$x,$y+1] end
+		if  input.match(/. . 1 . ./) then $walls << [$x+1,$y] end
+	when "south" then 
+		if  input.match(/1 . . . ./) then $walls << [$x+1,$y] end
+		if  input.match(/. 1 . . ./) then $walls << [$x,$y-1] end
+		if  input.match(/. . 1 . ./) then $walls << [$x-1,$y] end
+	when "east" then 
+		if  input.match(/1 . . . ./) then $walls << [$x,$y+1] end
+		if  input.match(/. 1 . . ./) then $walls << [$x+1,$y] end
+		if  input.match(/. . 1 . ./) then $walls << [$x,$y-1] end
+	when "west" then 
+		if  input.match(/1 . . . ./) then $walls << [$x,$y-1] end
+		if  input.match(/. 1 . . ./) then $walls << [$x-1,$y] end
+		if  input.match(/. . 1 . ./) then $walls << [$x,$y+1] end
+	end
+end
+
+def add_to_visited()
+	case $direction
+	when "north" then $y+=1
+	when "south" then $y-=1
+	when "east" then $x+=1
+	when "west" then $x-=1
+	end
+	$visited << [$x, $y]
+end
+
+def change_orientation(turnValue)
+	$command = turnValue #declared here instead of repeating code in main loop
+	case $direction
+	when "north" then
+		if turnValue == "left" : $direction = "west" end
+		if turnValue == "right": $direction = "east" end
+	when "south" then
+		if turnValue == "left" : $direction = "east" end
+		if turnValue == "right": $direction = "west" end
+	when "east" then
+		if turnValue == "left" : $direction = "north" end 
+		if turnValue == "right": $direction = "south" end
+	when "west" then
+		if turnValue == "left" : $direction = "south" end
+		if turnValue == "right": $direction = "north" end
+	end
+end
+
+def find_direct_path(input)
+	direct_path = true
+	rangeAry = Array.new
+	if input[0] == $x or input[1] == $y then
+		if input[0] == $x then rangeAry << input[1]
+			if input[1] < $y then
+				while rangeAry.last != $y do 
+					rangeAry << rangeAry.last+1 end
+			else
+				while rangeAry.last != $y do 
+					rangeAry << rangeAry.last-1 end
+			end
+			rangeAry.each{|xyLocation| if $walls.include?([input[0],xyLocation]) then direct_path = false; break end}
+		else
+			rangeAry << input[0]
+			if input[0] < $x then
+				while rangeAry.last != $x do 
+					rangeAry << rangeAry.last+1 
+				end
+			else
+				while rangeAry.last != $x do 
+					rangeAry << rangeAry.last-1 
+				end
+			end
+			rangeAry.each{|xyLocation| if $walls.include?([xyLocation,input[1]]) then direct_path = false; break end}
+		end
+		return direct_path
+	end
+end
+
+def get_input()
+	std = nil
+	std = STDIN.gets while std.nil?
+	return std
+end
+
+def turnAround()
+	change_orientation("right")
+	puts $command
+	std = get_input()
+	change_orientation ("right")
+	puts $command
+	std = get_input()
+	$command = "forward"
+end
+
+
+def direct_opperations(input)
+	case $direction
+	when input[0] then change_orientation("right")
+	when input[1] then change_orientation("left")
+	when input[2] then $command = "forward"
+	when input[3] then turnAround()
+	end
+end
+
+while true do
+	std = get_input()
+	moves+=1 
+	if moves >= 400 then puts "off"; break end
+	if $unvisited.length < 1 && moves > 3 then
+		if find_direct_path([0,0]) then tempAry = [0,0]
+			if $x == tempAry[0]
+				if $y < tempAry[1] then direct_opperations(["west","east","north","south"])
+				else direct_opperations(["east","west","south","north"]) end
+			else
+				if $x < tempAry[0] then direct_opperations(["north","south","east","west"])
+				else direct_opperations(["south","north","west","east"]) end
+			end
+			if ( moves > 3 && $unvisited.empty? && /. . . . 1/.match(std)) then puts "off" end
+			if $command == "forward" then add_to_visited() end
+			puts $command
+			std = get_input()
+		end
+	end
+	if check_stuck() then 
+		if ( moves > 3 && $unvisited.empty? && /. . . . 1/.match(std)) then puts "off" end
+		if /. . . 1 ./.match(std) then puts "vacuum"; std = get_input() end
+		if find_direct_path(shortest_distance()) then tempAry = shortest_distance()
+			if $x == tempAry[0]
+				if $y < tempAry[1] then direct_opperations(["west","east","north","south"])
+				else direct_opperations(["east","west","south","north"]) end
+			else
+				if $x < tempAry[0] then direct_opperations(["north","south","east","west"])
+				else direct_opperations(["south","north","west","east"]) end
+			end
+			if $command == "forward" then add_to_visited() end
+			puts $command
+			std = get_input()
+		end
+	end
+	if  std.match(/0 . . . ./) then add_to_unvisited("L")end #adds open coords to left and right of a position
+	if  std.match(/. . 0 . ./) then add_to_unvisited("R")end #to an array of available visitable places
+	case std #calls function to add xy coords to array of wall coords
+	when /1 . . . ./ then add_to_walls(std)
+	when /. 1 . . ./ then add_to_walls(std)
+	when /. . 1 . ./ then add_to_walls(std)
+	end
+	case std
+	when /. . . 1 ./ then $command = "vacuum"
+	when ((moves > 3) && $unvisited.length<1 && /. . . . 1/) then puts "off"; break
+	when /1 1 . . ./ then change_orientation("right")
+	when /. 1 1 . ./ then change_orientation("left")
+	when /1 . 1 . ./ then $command = "forward"
+	when /. 1 . . ./ then 
+		rd = rand()
+		if rd > 0.5 then change_orientation("right") 
+		else change_orientation("left") end
+	when /1 . . . ./ then $command = "forward"
+	when /. . 1 . ./ then $command = "forward"
+	else $command = "forward"
+	end
+	if $command == "forward" and !check_stuck() then  check_visited(std) end
+	if $command == "forward" then add_to_visited() end
+	$unvisited = $unvisited - $visited #removes any visited room from the list of unvisited
+	$visited.uniq! #removes duplicate values from array of visited rooms
+	$walls.uniq! #removes duplicate values from array of obstacle positions
+	$unvisited.uniq! #removes duplicate values from array of unvisited rooms
+	puts $command #outputs the next command	
+end

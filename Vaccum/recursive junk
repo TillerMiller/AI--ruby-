@@ -1,0 +1,70 @@
+	if $walls.include?([path.last[1],path.last[2]]) then 
+		path.last[3] = false
+		puts "# ran into a wall"
+		return nil 
+	end
+	roomCount = 0
+	tempAry = Array.new
+	tempCoords = Array.new
+	if path != nil then 
+		path.each {|coords| tempCoords << [coords[1],coords[2]] 
+			if tempCoords == [path.last[1],path.last[2]] then 
+				roomCount+=1 
+			end} 
+	end
+
+	if roomCount == 2 then 
+		puts "# too many times in room"
+		return nil 
+	end
+	puts "# PATH SIZE = "+path.length.to_s
+
+	puts "# path = "+path.to_s
+	if $unvisited.include?([path.last[1],path.last[2]]) then path.last[3] = true
+		$pathFound = true
+		puts "# EUREKA!"
+		return path 
+	end
+	thisPath = path.last[3]
+	if $pathFound == true and path.last[3] != true then 
+		puts "# path is found, not this one"
+		return nil 
+	end
+
+	
+	if $pathFound != true then
+		case path.last.last 
+		when "north" then
+			puts "# north"
+			tempAry = recurse(path << ["forward", path.last[1],   path.last[2]+1, thisPath, "north"])
+			if tempAry != nil then return tempAry end
+			tempAry = recurse(path << ["left",    path.last[1],   path.last[2],   thisPath, "west"])
+			if tempAry != nil then return tempAry end
+			tempAry = recurse(path << ["right",   path.last[1],   path.last[2],   thisPath, "east"])
+			if tempAry != nil then return tempAry end
+		when "south" then
+			puts "# south"
+			tempAry = recurse(path << ["forward", path.last[1],   path.last[2]-1, thisPath, "south"])
+			if tempAry != nil then return tempAry end
+			tempAry = recurse(path << ["left",    path.last[1],   path.last[2],   thisPath, "east"])
+			if tempAry != nil then return tempAry end
+			tempAry = recurse(path << ["right",   path.last[1],   path.last[2],   thisPath, "west"])
+			if tempAry != nil then return tempAry end
+		when "east" then
+			puts "# east"
+			tempAry = recurse(path << ["forward", path.last[1]+1, path.last[2],   thisPath, "east"])
+			if tempAry != nil then return tempAry end
+			tempAry = recurse(path << ["left",    path.last[1],   path.last[2],   thisPath, "north"])
+			if tempAry != nil then return tempAry end
+			tempAry = recurse(path << ["right",   path.last[1],   path.last[2],   thisPath, "south"])
+			if tempAry != nil then return tempAry end
+		when "west" then
+			puts "# west"
+			tempAry = recurse(path << ["forward", path.last[1]-1, path.last[2],   thisPath, "west"])
+			if tempAry != nil then return tempAry end
+			tempAry = recurse(path << ["left",    path.last[1],   path.last[2],   thisPath, "south"])
+			if tempAry != nil then return tempAry end
+			tempAry = recurse(path << ["right",   path.last[1],   path.last[2],   thisPath, "north"])
+			if tempAry != nil then return tempAry end
+		end
+	end

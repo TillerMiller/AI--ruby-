@@ -1,0 +1,9 @@
+MillisecondsPerFrame: 1.000000
+END OF HEADER
+3 68 f_*
+68 167 I
+167 310 f
+310 350 tc
+350 401 th
+401 452 .ln
+452 545 .pau

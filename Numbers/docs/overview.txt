@@ -1,0 +1,53 @@
+                          Numbers Corpus
+                            Release 1.1
+
+              Center for Spoken Language Understanding
+
+
+UPDATED: 02 August 2000
+
+
+Overview
+--------
+The Numbers Corpus is a collection of naturally produced
+numbers. The utterances were taken from other CSLU
+telephone speech data collections, and include isolated
+digit strings, continuous digit strings, and
+ordinal/cardinal numbers. A total of approximately 15,000
+files are included in this corpus.
+
+The utterances in this corpus were taken from other
+telephone speech data collections completed at the CSLU. 
+In most data collections the callers were asked to leave
+their phone number, birthdate, or zipcode at some point.
+Also, the callers would occasionally leave numbers in
+the midst of another utterance.  The numbers in these
+situations were extracted from the host utterance and added
+to the Numbers Corpus.
+
+Each file in the Numbers Corpus has an orthographic
+Transcription following the CSLU Labeling Conventions.
+Also, many of the utterances have been phonetically
+labelled.
+
+Release 1.1 of this corpus contains 14999 files.  Of these,
+6640 have been phonetically labeled.
+
+Statistics
+----------
+The Numbers Corpus consists of about 10.5 hours of speech.
+
+The following table gives a count of the number of files
+for each utterance type.
+
+	Type		Number
+	----------------------
+	other1		 2025
+	other2		  435
+	other3		   64
+	other4		   19
+	other5		    7
+	other6		    2
+	phone		 2984
+	streetaddr	 4724
+	zipcode		 4740
