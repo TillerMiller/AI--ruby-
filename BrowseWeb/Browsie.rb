@@ -18,9 +18,9 @@ def Search
 	driver = Selenium::WebDriver.for :firefox
 	driver.navigate.to "http://facebook.com"
 	email = driver.find_element(:name, 'email')
-	email.send_keys "millert@go.byuh.edu"
+	email.send_keys "Your@email.here"
 	pass = driver.find_element(:name, 'pass')
-	pass.send_keys "nothing0"
+	pass.send_keys "#######"
 	pass.submit
 	driver.navigate.to "http://bing.com"
 	searchBar = driver.find_element(:name, 'q')
