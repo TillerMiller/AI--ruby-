@@ -9,18 +9,18 @@ puts `export DISPLAY=:10`
 
 for i in 1..30 do
 	waitTime = RandomWait
-	sleep(waitTime.minutes)
+	sleep(waitTimes * 60) #waitTime converted to seconds for sleep call
 	Search
-	sleep((24-waitTime).minutes)
+	sleep((24-waitTime) * 60) #waitTime converted to seconds for sleep call
 end
 
 def Search
 	driver = Selenium::WebDriver.for :firefox
 	driver.navigate.to "http://facebook.com"
 	email = driver.find_element(:name, 'email')
-	email.send_keys "Your@email.here"
+	email.send_keys "you@email.here"
 	pass = driver.find_element(:name, 'pass')
-	pass.send_keys "#######"
+	pass.send_keys "######"
 	pass.submit
 	driver.navigate.to "http://bing.com"
 	searchBar = driver.find_element(:name, 'q')
