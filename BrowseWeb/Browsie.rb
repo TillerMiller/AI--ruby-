@@ -10,14 +10,15 @@ def Search()
 	sleep 5
 	searchBar = $driver.find_element(:name, 'q')
 	case Random.rand(1...8)
-		when 1 then searchBar.send_keys IHeartQuotes::Client.random()
-		when 2 then searchBar.send_keys Faker::Base.state() 
-		when 3 then searchBar.send_keys Faker::Base.city()
-		when 4 then searchBar.send_keys Faker::Base.country()
-		when 5 then searchBar.send_keys Faker::Commerce.product_name()
-		when 6 then searchBar.send_keys Faker::Company.catch_phrase()
-		when 7 then searchBar.send_keys Faker::Company.name()
-		when 8 then searchBar.send_keys Faker::Name.name()
+		when 1 then searchBar.send_keys IHeartQuotes::Client.random.quote()
+		when 2 then searchBar.send_keys IHeartQuotes::Client.random.source()
+		when 3 then searchBar.send_keys Faker::Base.state() 
+		when 4 then searchBar.send_keys Faker::Base.city()
+		when 5 then searchBar.send_keys Faker::Base.country()
+		when 6 then searchBar.send_keys Faker::Commerce.product_name()
+		when 7 then searchBar.send_keys Faker::Company.catch_phrase()
+		when 8 then searchBar.send_keys Faker::Company.name()
+		when 9 then searchBar.send_keys Faker::Name.name()
 	end
 	searchBar.submit
 	sleep 5 
