@@ -3,7 +3,7 @@
 require 'selenium-webdriver'
 require 'active_support'
 require 'faker'
-
+require 'yaml'
 
 def Search()
 	$driver.navigate.to "http://bing.com"
@@ -14,27 +14,20 @@ def Search()
 	sleep 5 
 end
 
-def RandomWaitTimeMin()
-	return Random.rand(1...24)
-end
-
-def RandomWaitTimeSec()
-	return Random.rand(1...60)
-end
-
-#puts `export DISPLAY=:10`
-#sleep 5
+$config = YAML::load(File.read('config.yaml'))
+#`export DISPLAY=:10`
+sleep 5
 $driver = Selenium::WebDriver.for :firefox
 $driver.navigate.to "http://facebook.com"
 email = $driver.find_element(:name, 'email')
-email.send_keys "input@email.here"
+email.send_keys $config['FACEBOOK_NAME']
 pass = $driver.find_element(:name, 'pass')
-pass.send_keys "#######"
+pass.send_keys $config['FACEBOOK_PASS']
 pass.submit
 
 for i in 1..30 do
-	$waitTimeMin = RandomWaitTimeMin()
-	$waitTimeSec = RandomWaitTimeSec()
+	$waitTimeMin = Random.rand(1...24)
+	$waitTimeSec = Random.rand(1..60)
 	sleep(($waitTimeMin * 60) + $waitTimeSec) #waitTime converted to seconds for sleep call
 	Search()
 	#sleep(((24 - $waitTimeMin) * 60) + (60 - $waitTimeSec)) #waitTime converted to seconds for sleep call
