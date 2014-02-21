@@ -9,26 +9,22 @@ def Search()
 	$driver.navigate.to "http://bing.com"
 	sleep 5
 	searchBar = $driver.find_element(:name, 'q')
-	case Random.rand(1...4)
-		when 1 then
-			searchBar.send_keys Faker::Company.catch_phrase()
-		when 2 then
-			searchBar.send_keys Faker::Name.name()
-		when 3 then 
-			case Random.rand(1...3)
-				when 1 then searchBar.send_keys Faker::Base.state() 
-				when 2 then searchBar.send_keys Faker::Base.city()
-				when 3 then searchBar.send_keys Faker::Base.country()
-			end
-		when 4 then
-			searchBar.send_keys IHeartQuotes::Client.random
+	case Random.rand(1...8)
+		when 1 then searchBar.send_keys IHeartQuotes::Client.random()
+		when 2 then searchBar.send_keys Faker::Base.state() 
+		when 3 then searchBar.send_keys Faker::Base.city()
+		when 4 then searchBar.send_keys Faker::Base.country()
+		when 5 then searchBar.send_keys Faker::Commerce.product_name()
+		when 6 then searchBar.send_keys Faker::Company.catch_phrase()
+		when 7 then searchBar.send_keys Faker::Company.name()
+		when 8 then searchBar.send_keys Faker::Name.name()
 	end
 	searchBar.submit
 	sleep 5 
 end
 
 $config = YAML::load(File.read('config.yaml'))
-#`export DISPLAY=:10`
+#`export DISPLAY=:10` # this line is for starting xvfb headless server
 sleep 5
 $driver = Selenium::WebDriver.for :firefox
 $driver.navigate.to "http://facebook.com"
