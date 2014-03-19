@@ -1,2 +1,4 @@
-FACEBOOK_NAME: your@email.here
-FACEBOOK_PASS: yourPassW0rdHere!
+FACEBOOK_EMAIL: yourFacebook@email.here
+FACEBOOK_PASSWORD: yourFacebookPassW0rdHere!
+OUTLOOK_EMAIL: yourOutlook@email.here
+OUTLOOK_PASSWORD: yourOutlookPasswordHere!
